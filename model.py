@@ -1019,3 +1019,27 @@ def build_completion_response(server_state, request_id, vocab):
         'finish_reason': finish_reason,
     }
 
+# Step 47 - time_to_first_token
+def time_to_first_token(events):
+    submit_times = {}
+    first_token_times = {}
+
+    for ev in events:
+        req_id = ev['request_id']
+        ev_type = ev['event']
+        t = ev['time']
+
+        if ev_type == 'submit':
+            if req_id not in submit_times or t < submit_times[req_id]:
+                submit_times[req_id] = t
+        elif ev_type == 'token':
+            if req_id not in first_token_times or t < first_token_times[req_id]:
+                first_token_times[req_id] = t
+
+    ttft = {}
+    for req_id, sub_t in submit_times.items():
+        if req_id in first_token_times:
+            ttft[req_id] = first_token_times[req_id] - sub_t
+
+    return ttft
+
