@@ -362,3 +362,13 @@ def gather_kv_from_blocks(allocator, seq_id):
         
     return K, V
 
+# Step 23 - paged_attention_step
+import numpy as np
+
+def paged_attention_step(q, allocator, seq_id):
+    # 1. Gather keys and values from the paged blocks for seq_id
+    k, v = gather_kv_from_blocks(allocator, seq_id)
+    
+    # 2. Run causal scaled-dot-product attention over the gathered KV
+    return causal_attention(q, k, v, is_causal=True)
+
