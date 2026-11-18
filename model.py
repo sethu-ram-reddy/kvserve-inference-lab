@@ -894,3 +894,98 @@ def submit_request(server_state, prompt, max_new_tokens, priority, vocab):
 
     return request_id
 
+# Step 44 - drive_until_complete
+def drive_until_complete(server_state, params, allocator, sampling_config, vocab, max_steps):
+    # Ensure required keys exist on server_state without overwriting extra keys
+    waiting_heap = server_state.setdefault('waiting_heap', [])
+    running = server_state.setdefault('running', [])
+    completed = server_state.setdefault('completed', {})
+    streams = server_state.setdefault('streams', {})
+
+    max_running = server_state.get('max_running', 4)
+    eos_token_id = server_state.get('eos_token_id', sampling_config.get('eos_token_id', -1))
+    block_size = allocator.get('block_size', 1)
+
+    step_sampling_config = dict(sampling_config)
+    step_sampling_config['eos_token_id'] = eos_token_id
+
+    emitted_chunks = []
+    if max_steps <= 0:
+        return emitted_chunks
+
+    def admit_from_waiting():
+        max_admit = max(0, max_running - len(running))
+        if max_admit == 0 or not waiting_heap:
+            return
+        newly_admitted = select_admissions(waiting_heap, allocator, block_size, max_admit)
+        for req in newly_admitted:
+            req_id = req['request_id']
+            prompt = req.get('prompt_token_ids', req.get('prompt_ids', []))
+            max_new = req.get('max_new_tokens', 0)
+
+            # Prefill prompt K/V into the paged cache
+            x = embed_tokens(prompt, params['embedding'])
+            k_prompt = linear_projection(x, params['Wk'])
+            v_prompt = linear_projection(x, params['Wv'])
+            append_to_paged_cache(allocator, req_id, k_prompt, v_prompt)
+
+            seq_state = {
+                'request_id': req_id,
+                'prompt_token_ids': list(prompt),
+                'token_ids': list(prompt),
+                'generated': [],
+                'max_new_tokens': max_new,
+                'priority': req.get('priority', 0),
+                'done': False,
+            }
+            streams.setdefault(req_id, [])
+
+            if is_sequence_done(seq_state, eos_token_id):
+                seq_state['done'] = True
+                free_sequence_blocks(allocator, req_id)
+                finish_reason = 'eos' if (seq_state['generated'] and seq_state['generated'][-1] == eos_token_id) else 'length'
+                completed[req_id] = {
+                    'request_id': req_id,
+                    'output_ids': list(seq_state['generated']),
+                    'chunks': list(streams[req_id]),
+                    'finish_reason': finish_reason,
+                }
+            else:
+                running.append(seq_state)
+
+    steps = 0
+    while steps < max_steps and (running or waiting_heap):
+        admit_from_waiting()
+        if not running:
+            break
+
+        continuous_batch_step(params, running, allocator, step_sampling_config)
+        steps += 1
+
+        still_running = []
+        for seq in running:
+            req_id = seq['request_id']
+            new_tok = seq['generated'][-1]
+            finished = bool(seq.get('done', False) or is_sequence_done(seq, eos_token_id))
+            token_text = decode_tokens([new_tok], vocab, skip_special=True)
+
+            chunk = format_stream_chunk(req_id, new_tok, token_text, finished)
+            streams.setdefault(req_id, []).append(chunk)
+            emitted_chunks.append(chunk)
+
+            if finished:
+                free_sequence_blocks(allocator, req_id)
+                finish_reason = 'eos' if new_tok == eos_token_id else 'length'
+                completed[req_id] = {
+                    'request_id': req_id,
+                    'output_ids': list(seq['generated']),
+                    'chunks': list(streams[req_id]),
+                    'finish_reason': finish_reason,
+                }
+            else:
+                still_running.append(seq)
+
+        running[:] = still_running
+
+    return emitted_chunks
+
