@@ -848,3 +848,21 @@ def preempt_sequence(sequence, allocator, waiting_heap):
     
     return request
 
+# Step 41 - schedule_step
+def schedule_step(waiting_heap, running, allocator, block_size, max_running):
+    # 1. Enforce max_running cap by preempting lowest-priority (highest priority number) sequences
+    while len(running) > max_running:
+        # Find the lowest-priority sequence (largest priority value; tie-break from the end)
+        victim_idx = max(range(len(running)), key=lambda i: (running[i].get('priority', 0), i))
+        victim = running.pop(victim_idx)
+        preempt_sequence(victim, allocator, waiting_heap)
+        
+    # 2. Admit as many waiting requests as max_running and free blocks allow
+    max_admit = max(0, max_running - len(running))
+    newly_admitted = select_admissions(waiting_heap, allocator, block_size, max_admit)
+    
+    return {
+        'running': running,
+        'newly_admitted': newly_admitted,
+    }
+
