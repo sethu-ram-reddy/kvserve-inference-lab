@@ -63,3 +63,11 @@ def top_p_filter(logits, p):
     
     return np.where(remove_mask, -np.inf, logits).astype(logits.dtype)
 
+# Step 5 - sample_from_probs
+import numpy as np
+
+def sample_from_probs(probs, rng):
+    # Sample a single token index using the provided numpy.random.Generator
+    idx = rng.choice(len(probs), p=probs)
+    return int(idx)
+
