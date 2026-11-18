@@ -699,3 +699,94 @@ def continuous_batch_step(params, running, allocator, sampling_config):
 
     return running
 
+# Step 36 - run_continuous_batching
+import numpy as np
+
+def run_continuous_batching(params, requests, allocator, sampling_config, max_steps):
+    """Drive the full continuous-batching generation loop: admit, decode, retire finished sequences."""
+    waiting = list(requests)
+    running = []
+    completed = []
+    
+    eos_token_id = sampling_config.get('eos_token_id', -1)
+    block_size = allocator.get('block_size', 1)
+
+    def admit_sequences():
+        while waiting:
+            req = waiting[0]
+            prompt = req['prompt_token_ids']
+            max_new = req.get('max_new_tokens', 0)
+            
+            # Check capacity for prompt + upcoming tokens
+            needed = blocks_needed(len(prompt) + 1, block_size)
+            if not has_free_capacity(allocator, needed):
+                break
+                
+            waiting.pop(0)
+            seq_id = req['request_id']
+            
+            # Prefill prompt K/V into paged allocator (no token generated yet)
+            x = embed_tokens(prompt, params['embedding'])
+            k_prompt = linear_projection(x, params['Wk'])
+            v_prompt = linear_projection(x, params['Wv'])
+            append_to_paged_cache(allocator, seq_id, k_prompt, v_prompt)
+            
+            seq_state = {
+                'request_id': seq_id,
+                'prompt_token_ids': list(prompt),
+                'token_ids': list(prompt),
+                'generated': [],
+                'max_new_tokens': max_new,
+                'done': False
+            }
+            
+            if is_sequence_done(seq_state, eos_token_id):
+                seq_state['done'] = True
+                free_sequence_blocks(allocator, seq_id)
+                completed.append({
+                    'request_id': seq_id,
+                    'output_ids': seq_state['generated']
+                })
+            else:
+                running.append(seq_state)
+
+    # Initial admission before decode loop
+    admit_sequences()
+    
+    steps = 0
+    while (running or waiting) and steps < max_steps:
+        if not running:
+            admit_sequences()
+            if not running:
+                break
+                
+        # Advance all running sequences by 1 token
+        continuous_batch_step(params, running, allocator, sampling_config)
+        steps += 1
+        
+        # Retire finished sequences and free their blocks
+        still_running = []
+        for seq in running:
+            if seq.get('done', False) or is_sequence_done(seq, eos_token_id):
+                free_sequence_blocks(allocator, seq['request_id'])
+                completed.append({
+                    'request_id': seq['request_id'],
+                    'output_ids': seq['generated']
+                })
+            else:
+                still_running.append(seq)
+        running = still_running
+        
+        # Admit newly freed capacity from waiting queue
+        admit_sequences()
+
+    # Flush any still-running sequences if max_steps cap was hit
+    for seq in running:
+        free_sequence_blocks(allocator, seq['request_id'])
+        completed.append({
+            'request_id': seq['request_id'],
+            'output_ids': seq['generated']
+        })
+        
+    return completed
+
