@@ -417,3 +417,39 @@ def init_sequence_state(request, params):
         'max_new_tokens': request['max_new_tokens']
     }
 
+# Step 28 - sequence_decode_step
+import numpy as np
+
+def sequence_decode_step(state, params, rng):
+    logits = state['last_logits']
+    
+    # Support both state['sampling_params'] and state['request']['sampling_params']
+    sp = state.get('sampling_params', state.get('request', {}).get('sampling_params', {}))
+    
+    # 1. Select next token from last_logits based on sampling params
+    if sp.get('greedy', False) or sp.get('temperature', 1.0) == 0.0:
+        next_token = greedy_select(logits)
+    else:
+        temp = sp.get('temperature', 1.0)
+        scaled = apply_temperature(logits, temp)
+        
+        if 'top_k' in sp and sp['top_k'] is not None:
+            scaled = top_k_filter(scaled, sp['top_k'])
+        if 'top_p' in sp and sp['top_p'] is not None:
+            scaled = top_p_filter(scaled, sp['top_p'])
+            
+        probs = stable_softmax(scaled)
+        next_token = sample_from_probs(probs, rng)
+        
+    next_token_id = int(next_token)
+    
+    # 2. Run one decode step to refresh cache and logits
+    new_logits, new_cache = model_decode_step(next_token_id, state['cache'], params)
+    
+    # 3. Update state in place and append to generated
+    state['cache'] = new_cache
+    state['last_logits'] = new_logits
+    state['generated'].append(next_token_id)
+    
+    return next_token_id, state
+
