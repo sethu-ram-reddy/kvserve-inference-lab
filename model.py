@@ -807,3 +807,22 @@ def priority_queue_pop(heap):
     _, _, request = heapq.heappop(heap)
     return request
 
+# Step 39 - select_admissions
+def select_admissions(waiting_heap, allocator, block_size, max_admit):
+    admitted = []
+    available_blocks = len(allocator.get('free_list', []))
+    
+    while waiting_heap and len(admitted) < max_admit:
+        req = priority_queue_pop(waiting_heap)
+        prompt_len = len(req.get('prompt_ids', req.get('prompt_token_ids', [])))
+        needed = blocks_needed(prompt_len, block_size)
+        
+        if needed <= available_blocks:
+            admitted.append(req)
+            available_blocks -= needed
+        else:
+            priority_queue_push(waiting_heap, req['priority'], req)
+            break
+            
+    return admitted
+
