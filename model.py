@@ -480,3 +480,22 @@ def generate_single_sequence(request, params, eos_token_id, rng):
     # 3. Return only the generated token IDs
     return state['generated']
 
+# Step 31 - build_batch_step_input
+import numpy as np
+
+def build_batch_step_input(sequences):
+    active_indices = []
+    input_ids = []
+    
+    for idx, seq in enumerate(sequences):
+        if not seq.get('done', False):
+            active_indices.append(idx)
+            # Handle both 'token_ids' and 'generated' keys depending on sequence format
+            tokens = seq.get('token_ids', seq.get('generated', []))
+            input_ids.append(tokens[-1])
+            
+    return {
+        'active_indices': active_indices,
+        'input_ids': np.array(input_ids, dtype=np.int64)
+    }
+
