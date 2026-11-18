@@ -71,3 +71,10 @@ def sample_from_probs(probs, rng):
     idx = rng.choice(len(probs), p=probs)
     return int(idx)
 
+# Step 6 - greedy_select
+import numpy as np
+
+def greedy_select(logits):
+    # np.argmax automatically returns the first (lowest) index in case of ties
+    return int(np.argmax(logits))
+
