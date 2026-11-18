@@ -6,7 +6,9 @@ Read this alongside `kvserve/model.py`, `cache.py` and `engine.py`. The goal is 
 
 Autoregressive generation repeatedly predicts a token conditioned on the prefix. For a request with prompt $x_{1:P}$ and output $y_{1:G}$,
 
-$$p(y_{1:G}\mid x)=\prod_{t=1}^{G}p(y_t\mid x,y_{<t}).$$
+```math
+p(y_{1:G}\mid x)=\prod_{t=1}^{G}p(y_t\mid x,y_1,\ldots,y_{t-1}).
+```
 
 A request cannot know its next input token until it selects its current output token. Requests also have different prompt lengths and output budgets. A batch that waits for its longest member leaves admission slots idle after shorter members finish. A server must decide which requests to admit, how much KV capacity to promise, and when to reuse released resources.
 
@@ -39,11 +41,15 @@ sequenceDiagram
 
 The project uses byte tokens plus BOS/EOS: 258 possible IDs. An input embedding receives sinusoidal positional information before its Q/K/V projections:
 
-$$X=E[\text{ids}]+\operatorname{Position}(0,\ldots,T-1),\quad Q=XW_Q,\ K=XW_K,\ V=XW_V.$$
+```math
+X=E[\text{ids}]+\text{Position}(0,\ldots,T-1),\quad Q=XW_Q,\ K=XW_K,\ V=XW_V.
+```
 
 For head width $d$, causal attention is
 
-$$\operatorname{Attention}(Q,K,V)=\operatorname{softmax}\left(\frac{QK^\top}{\sqrt d}+M\right)V,$$
+```math
+\text{Attention}(Q,K,V)=\text{softmax}\left(\frac{QK^\top}{\sqrt d}+M\right)V,
+```
 
 where future positions receive $-\infty$ in $M$. An output projection followed by the vocabulary head produces token logits.
 
@@ -51,7 +57,9 @@ KVServe has one attention head and one attention block. It omits MLPs, residual 
 
 For width 64, trainable-shaped weight arrays contain
 
-$$2Vd+4d^2=2(258)(64)+4(64)^2=49{,}408$$
+```math
+2Vd+4d^2=2(258)(64)+4(64)^2=49{,}408
+```
 
 parameters. The deterministic positional table is not counted as model weights.
 
@@ -63,11 +71,15 @@ At decode step $t$, old tokens' key and value projections are unchanged. Recompu
 
 For one single-head layer with float32 cache values, the useful KV bytes for a length-$T$ sequence are
 
-$$M_{KV}=2Td\cdot4.$$
+```math
+M_{KV}=2Td\cdot4.
+```
 
 The 2 counts keys and values. A general multilayer model instead uses
 
-$$M_{KV}=2LTn_{KV}d_{head}b,$$
+```math
+M_{KV}=2LTn_{KV}d_{head}b,
+```
 
 where $L$ is the number of layers, $n_{KV}$ is the number of KV heads, and $b$ is bytes per scalar. Grouped-query attention can make $n_{KV}$ smaller than the number of query heads. Model weight precision and KV precision are separate choices.
 
@@ -81,13 +93,17 @@ A fixed cache allocates two contiguous $[T_{max},d]$ arrays per admitted sequenc
 
 A paged cache owns a pool of $B$-token blocks. A sequence's logical position $i$ maps through its private block table:
 
-$$\text{logical block}=\lfloor i/B\rfloor,\quad \text{offset}=i\bmod B.$$
+```math
+\text{logical block}=\lfloor i/B\rfloor,\quad \text{offset}=i\bmod B.
+```
 
 The table supplies a physical block index. Different sequences may own interleaved physical blocks; neither sequence needs a contiguous physical range.
 
 For lengths $T_1,\ldots,T_N$, assigned capacity is
 
-$$C_{fixed}=NT_{max},\qquad C_{paged}=\sum_{j=1}^{N}B\left\lceil T_j/B\right\rceil.$$
+```math
+C_{fixed}=NT_{max},\qquad C_{paged}=\sum_{j=1}^{N}B\left\lceil T_j/B\right\rceil.
+```
 
 Only the final block of each sequence can have unused assigned slots, giving a tail-waste bound of fewer than $NB$ slots. Smaller blocks reduce that rounding waste but increase table and traversal overhead. The [block-size experiment](benchmark.md#assigned-capacity-study) measures the capacity side of this trade-off.
 
@@ -99,9 +115,13 @@ The original exercise gathered all the pages into contiguous K/V arrays before a
 
 Maintain a running maximum $m$, denominator $l$, and weighted numerator $o$. For block logits $s$ and values $V_b$,
 
-$$m'=\max(m,\max(s)),\quad \alpha=e^{m-m'},\quad w=e^{s-m'},$$
+```math
+m'=\max(m,\max(s)),\quad \alpha=e^{m-m'},\quad w=e^{s-m'},
+```
 
-$$l'=\alpha l+\sum_iw_i,\qquad o'=\alpha o+wV_b.$$
+```math
+l'=\alpha l+\sum_iw_i,\qquad o'=\alpha o+wV_b.
+```
 
 The final context is $o/l$. This is mathematically the same normalized weighted sum as concatenating the blocks and applying softmax once, up to floating-point rounding. Float64 accumulation improves numerical stability in this CPU reference; cache rows remain float32.
 
@@ -117,7 +137,9 @@ Both modes use the same attention decoder, output budgets and request seeds. Q/K
 
 A useful invariant is
 
-$$\sum_{r\in\text{running}}\operatorname{reserved}(r)\le C_{pool}.$$
+```math
+\sum_{r\in\text{running}}\text{reserved}(r)\le C_{pool}.
+```
 
 For fixed slabs, reservation is $T_{max}$. For pages, it is the rounded declared maximum length. Actual page assignment grows with the cache. A request that cannot fit an empty pool is rejected rather than left waiting forever.
 
@@ -135,7 +157,9 @@ With identical request seeds, policy changes should preserve generated token IDs
 
 For request $r$, let $s_r$ be submission, $a_r$ admission, $f_r$ its first emitted token, and $t_{r,i}$ token timestamps.
 
-$$TTFT_r=f_r-s_r,\quad W_r=a_r-s_r,\quad ITL_{r,i}=t_{r,i+1}-t_{r,i}.$$
+```math
+TTFT_r=f_r-s_r,\quad W_r=a_r-s_r,\quad ITL_{r,i}=t_{r,i+1}-t_{r,i}.
+```
 
 Output throughput divides emitted token count by measured elapsed wall time. End-to-end latency runs from submission to finish. TTFT includes queueing and prefill; it is not just the decode kernel duration.
 
