@@ -1043,3 +1043,21 @@ def time_to_first_token(events):
 
     return ttft
 
+# Step 48 - inter_token_latency
+def inter_token_latency(events):
+    token_times = {}
+
+    for ev in events:
+        if ev['event'] == 'token':
+            token_times.setdefault(ev['request_id'], []).append(ev['time'])
+
+    itl = {}
+    for req_id, times in token_times.items():
+        if len(times) < 2:
+            itl[req_id] = 0.0
+        else:
+            times.sort()
+            itl[req_id] = (times[-1] - times[0]) / (len(times) - 1)
+
+    return itl
+
