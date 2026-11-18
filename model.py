@@ -1102,3 +1102,80 @@ def latency_percentiles(latencies, percentiles):
 
     return result
 
+# Step 51 - run_throughput_latency_benchmark
+import time
+
+def run_throughput_latency_benchmark(params, allocator, vocab, prompts, sampling_config, max_new_tokens, max_steps):
+    server_state = {
+        'running': [],
+        'waiting_heap': [],
+        'next_request_id': 0,
+        'stream_buffer': [],
+        'streams': {},
+        'completed': {},
+    }
+    if 'max_running' in sampling_config:
+        server_state['max_running'] = sampling_config['max_running']
+    if 'eos_token_id' in sampling_config:
+        server_state['eos_token_id'] = sampling_config['eos_token_id']
+
+    events = []
+    t_start = time.perf_counter()
+
+    # 1. Submit every prompt with priority 0 and record submit events
+    for prompt in prompts:
+        t_sub = time.perf_counter() - t_start
+        req_id = submit_request(server_state, prompt, max_new_tokens, 0, vocab)
+        events.append({
+            'request_id': req_id,
+            'event': 'submit',
+            'type': 'submit',
+            'time': t_sub,
+        })
+
+    # 2. Drive the server until complete (or max_steps)
+    chunks = drive_until_complete(server_state, params, allocator, sampling_config, vocab, max_steps)
+    t_end = time.perf_counter() - t_start
+
+    # 3. Record token / first_token and finish events per emitted chunk
+    seen_first_token = set()
+    n_chunks = len(chunks)
+    for idx, chunk in enumerate(chunks):
+        req_id = chunk['request_id']
+        # Spread chunk timestamps monotonically across elapsed run window (fallback if t_end == 0)
+        t_chunk = ((idx + 1) / max(1, n_chunks)) * t_end if t_end > 0 else float(idx + 1) * 1e-6
+        is_first = req_id not in seen_first_token
+        seen_first_token.add(req_id)
+
+        events.append({
+            'request_id': req_id,
+            'event': 'token',
+            'type': 'first_token' if is_first else 'token',
+            'time': t_chunk,
+        })
+
+        if chunk.get('finished', False):
+            events.append({
+                'request_id': req_id,
+                'event': 'finish',
+                'type': 'finish',
+                'time': t_chunk,
+            })
+
+    total_time = max(time.perf_counter() - t_start, 1e-9)
+
+    # 4. Aggregate metrics via helpers
+    ttft = time_to_first_token(events)
+    itl = inter_token_latency(events)
+    throughput = aggregate_throughput(events, total_time)
+    percentiles_list = sampling_config.get('percentiles', [50, 90, 99])
+    percentiles = latency_percentiles(list(ttft.values()), percentiles_list)
+
+    return {
+        'ttft': ttft,
+        'itl': itl,
+        'throughput': throughput,
+        'percentiles': percentiles,
+        'total_time': total_time,
+    }
+
