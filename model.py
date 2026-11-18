@@ -629,3 +629,7 @@ def static_batch_generate(params, requests, sampling_config, max_new_tokens):
         
     return results
 
+# Step 34 - has_free_capacity
+def has_free_capacity(allocator, required_blocks):
+    return len(allocator.get('free_list', [])) >= required_blocks
+
