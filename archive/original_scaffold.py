@@ -1,11 +1,11 @@
 """
-Build a Mini LLM Inference Server scaffold.
+Legacy integration driver for the functional inference interfaces.
 
-Run this with: python scaffold.py
-Uses functions defined in model.py.
+Requires the archived functions to be exposed as model.py.
+Use the repository-root scaffold.py for the maintained runtime.
 """
 
-from model import *  # noqa: F401, F403 (pulls in your solution functions)
+from model import *  # noqa: F401, F403 (legacy public function interface)
 
 """End-to-end demo for the Mini LLM Inference Server project."""
 

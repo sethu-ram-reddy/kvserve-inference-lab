@@ -1,7 +1,8 @@
 """
-Build a Mini LLM Inference Server
+Legacy functional inference interfaces.
 
-Assembled from your step-by-step solutions.
+Sampling, attention, KV allocation and scheduling functions retained for
+implementation comparison. Source attribution is recorded in NOTICE.md.
 """
 
 import numpy as np

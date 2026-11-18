@@ -58,10 +58,10 @@ These decisions explain the maintained implementation. They distinguish an imple
 
 **Cost:** four configurations and multiple workload seeds require more evidence than one before/after screenshot. The repository keeps raw runs, representative traces and canonical outputs to make that evidence reviewable.
 
-## 8. Preserve the exercise without making it the maintained interface
+## 8. Isolate legacy interfaces from the maintained runtime
 
-**Decision:** keep the original 51-step solutions in `archive/`, replace the top-level entry points with the maintained package, and document the mapping.
+**Decision:** retain the earlier functional interfaces in `archive/`, expose the maintained runtime through `kvserve/`, and document the migration.
 
-**Reason:** the exercise is part of the work's provenance. Its independently assembled functions use inconsistent state conventions and reconstructed timings. A coherent package makes one request lifecycle authoritative.
+**Reason:** the legacy functions use different state conventions and reconstructed timings. The maintained package makes cache ownership, request progression and observed event timing authoritative while retaining a technical reference for earlier interfaces.
 
-**Cost:** this is a deliberate API change. Old exercise callers should import the archived snapshot; new callers should use `Engine`, `EngineConfig`, cache classes and the CLI. The snapshot is not used for published measurements.
+**Cost:** this is a deliberate API change. Callers of the legacy interfaces must use the archived snapshot or migrate to `Engine`, `EngineConfig`, cache classes and the CLI. Published measurements use the maintained runtime.

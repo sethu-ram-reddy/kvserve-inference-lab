@@ -1,4 +1,4 @@
-"""Public entry points. The original 51 exercise solutions are in archive/."""
+"""Public entry points for the maintained KVServe runtime; legacy interfaces are in archive/."""
 from kvserve.model import AttentionDecoder, ByteTokenizer
 from kvserve.cache import ContiguousCache, PagedCache
 from kvserve.engine import Engine, EngineConfig

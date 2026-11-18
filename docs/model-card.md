@@ -39,4 +39,4 @@ The HTTP implementation is a local demonstration. It lacks user authentication, 
 
 ## Provenance
 
-The original learning path is the Deep-ML *Build a Mini LLM Inference Server* exercise. `archive/` preserves the uploaded implementation. Maintained code and evidence are described in [provenance.md](provenance.md), with source hashes in the reference manifest. Project context is ChIEAC applied AI engineering, as described by the repository owner.
+The maintained runtime is under `kvserve/`; `archive/` contains earlier functional interfaces for technical comparison. [Implementation history](provenance.md) documents the migration, and the reference manifest records measured source hashes. Source attribution is recorded in [NOTICE.md](../NOTICE.md). Project context is ChIEAC applied AI engineering.

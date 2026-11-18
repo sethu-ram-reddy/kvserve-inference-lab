@@ -6,4 +6,4 @@ Reference evidence belongs to its recorded source hashes. If runtime code change
 
 For an experiment, state the question, changed factor, controls, arrival model, timing boundary and output-equivalence condition. Report regressions alongside improvements. Separate in-process timing, client-observed timing, assigned capacity and resident memory.
 
-The original Deep-ML exercise remains in `archive/` for provenance. Maintained interfaces are under `kvserve/`. Use ordinary technical diagrams and data-derived figures; regenerate the plots using `scripts/report.py`.
+Legacy functional interfaces are retained in `archive/` for implementation comparison. Maintained interfaces are under `kvserve/`. Source credits are recorded in `NOTICE.md`. Use ordinary technical diagrams and data-derived figures; regenerate the plots using `scripts/report.py`.

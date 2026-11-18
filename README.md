@@ -104,9 +104,9 @@ The reference grid takes roughly tens of seconds on this host. CPU timings depen
 | [benchmarks/run.py](benchmarks/run.py) | Paired workloads, 2×2 ablation, cache and block-size studies |
 | [tests/](tests/) | Numerical equivalence, ownership, failure paths and HTTP behavior |
 
-## Project context and provenance
+## Project context
 
-Developed as an inference-systems project for **ChIEAC — Chicago Education Advocacy Cooperative**. It began with the 51-step Deep-ML *Build a Mini LLM Inference Server* exercise. The original solutions are preserved in [archive/](archive/); the maintained implementation adds a coherent engine, direct blockwise attention, an actual HTTP adapter, correctness checks and reproducible experiments. [What changed and why](docs/provenance.md)
+Developed as an inference-systems project for **ChIEAC — Chicago Education Advocacy Cooperative**, focused on KV capacity management, request scheduling and reproducible performance evaluation. The maintained runtime integrates direct blockwise attention, conservative admission, HTTP streaming and output-equivalence checks. [Implementation history](docs/provenance.md) · [Source attribution](NOTICE.md)
 
 The mechanisms are established systems techniques, inspired by [Orca](https://www.usenix.org/conference/osdi22/presentation/yu) and [PagedAttention](https://arxiv.org/abs/2309.06180). This project's contribution is their inspectable implementation, controlled evaluation and explicit failure handling at a small CPU scale. It makes no claim to invent continuous batching or paging.
 

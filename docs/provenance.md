@@ -1,26 +1,30 @@
-# Provenance and the engineering extension
+# Implementation history
 
-The repository began with the Deep-ML *Build a Mini LLM Inference Server* 51-step exercise. The uploaded exercise commit is `392f3b995edb27002a846ad43ed230f718fb36c9`. The original `model.py` and `scaffold.py` are preserved as `archive/step_solutions.py` and `archive/original_scaffold.py`.
+KVServe consolidates earlier functional cache and scheduling interfaces into a maintained runtime with explicit ownership, request lifecycles and reproducible measurement. This document records the technical changes and their rationale.
 
-The maintained package is a deliberate integration and evaluation extension. The archive preserves the original solution state; it is not imported by the benchmark or server, and its reconstructed latency figures are not reused.
+## Baseline implementation
 
-| Original area | Maintained implementation | Why it changed |
+Commit `392f3b995edb27002a846ad43ed230f718fb36c9` records the earlier implementation. Its functional interfaces and integration driver are retained in `archive/` for comparison. Neither the HTTP server nor the published benchmark imports those files.
+
+## Changes to the maintained runtime
+
+| Baseline area | Current implementation | Engineering rationale |
 | --- | --- | --- |
 | Sampling helpers | `kvserve/sampling.py` | Validate parameters and retain request-local RNG semantics |
 | Character vocabulary | `ByteTokenizer` | Stable, corpus-independent input IDs; explicit UTF-8 handling |
 | Prefill and decode helpers | `AttentionDecoder` | One authoritative cache/input lifecycle, explicit positions and uncached numerical reference |
 | Paged cache and gather | `PagedCache` | Atomic append, ownership checks, and direct online softmax over physical pages |
 | Independent sequence/batch helpers | `Engine` | Consistent request state across scheduling policies |
-| Prompt-only capacity checks | Lifetime reservations | Prevent a request from being admitted without enough room to finish its declared budget |
-| Dictionary serving interface | FastAPI shared worker and SSE | Expose an actual HTTP delivery path with cleanup |
-| Chunk timing reconstruction | Observed event timestamps | Establish valid TTFT/ITL accounting |
-| One small scaffold run | 180-run paired grid and separate ablations | Measure controls, repeated outcomes and counterexamples |
-| Checklist README | Theory, architecture, decisions and evidence | Explain the engineering question and make claims reviewable |
+| Prompt-only capacity checks | Lifetime reservations | Prevent admission without enough KV capacity for the declared output budget |
+| Dictionary serving interface | FastAPI shared worker and SSE | Provide HTTP delivery with bounded buffering and cancellation cleanup |
+| Chunk timing reconstruction | Observed event timestamps | Measure TTFT and ITL at their source |
+| Single integration run | 180-run paired grid and separate ablations | Measure controls, repeated outcomes and counterexamples |
+| Function checklist | Architecture, theory, decisions and evidence | Make implementation choices and numerical claims reviewable |
 
-The exercise's primitives are established techniques. Continuous scheduling and paging are not new inventions of this repository. Its distinct value is the combination of transparent implementation, failure handling, equivalence checks and an experiment that reports both the benefits and the costs.
+The current implementation separates cache ownership, scheduler policy, model computation and client delivery. Its evaluation reports both improvements and regressions: continuous refill improves the measured fixed-cache workload, while Python page traversal adds overhead despite reducing assigned capacity.
 
-## Run the preserved snapshot
+## Compatibility
 
-The archived scaffold imports a module named `model`. To run the exact archived pair, copy `step_solutions.py` and `original_scaffold.py` into a separate temporary directory as `model.py` and `scaffold.py`, then run the latter there. The archive is primarily provided for inspection; the maintained `python scaffold.py` at the repository root is the supported command.
+The legacy integration driver imports a module named `model`. To execute the archived pair in isolation, copy `step_solutions.py` and `original_scaffold.py` into a separate temporary directory as `model.py` and `scaffold.py`, then run the latter there. Current callers should use the public classes under `kvserve/` or the installed `kvserve` command.
 
-No pretrained model or external dataset is redistributed. Source-paper credit belongs to the Orca and PagedAttention authors; the original learning exercise is credited to Deep-ML.
+Source attribution and research references are recorded in [NOTICE.md](../NOTICE.md) and [theory.md](theory.md). No pretrained model or external text dataset is redistributed.

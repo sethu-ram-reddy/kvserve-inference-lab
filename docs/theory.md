@@ -111,7 +111,7 @@ Only the final block of each sequence can have unused assigned slots, giving a t
 
 ## 5. Attention directly over blocks
 
-The original exercise gathered all the pages into contiguous K/V arrays before attention. KVServe instead updates the softmax normalization as it reads each physical block.
+The legacy implementation gathered all the pages into contiguous K/V arrays before attention. KVServe instead updates the softmax normalization as it reads each physical block.
 
 Maintain a running maximum $m$, denominator $l$, and weighted numerator $o$. For block logits $s$ and values $V_b$,
 
