@@ -790,3 +790,11 @@ def run_continuous_batching(params, requests, allocator, sampling_config, max_st
         
     return completed
 
+# Step 37 - priority_queue_push
+import heapq
+
+def priority_queue_push(heap, priority, request):
+    counter = max((item[1] for item in heap), default=-1) + 1
+    heapq.heappush(heap, (priority, counter, request))
+    return heap
+
