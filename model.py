@@ -633,3 +633,69 @@ def static_batch_generate(params, requests, sampling_config, max_new_tokens):
 def has_free_capacity(allocator, required_blocks):
     return len(allocator.get('free_list', [])) >= required_blocks
 
+# Step 35 - continuous_batch_step
+import numpy as np
+
+def continuous_batch_step(params, running, allocator, sampling_config):
+    """Advance every active sequence in `running` by one decoded token using the paged allocator."""
+    eos_token_id = sampling_config.get('eos_token_id', -1)
+    greedy = sampling_config.get('greedy', False)
+    temperature = sampling_config.get('temperature', 1.0)
+    top_k = sampling_config.get('top_k', None)
+    top_p = sampling_config.get('top_p', None)
+    rng = sampling_config.get('rng', np.random.default_rng())
+
+    W_embed = params['embedding']
+    W_q = params['Wq']
+    W_k = params['Wk']
+    W_v = params['Wv']
+    W_o = params['Wo']
+    W_out = params['W_out']
+
+    for seq in running:
+        if seq.get('done', False):
+            continue
+
+        seq_id = seq['request_id']
+        last_token = seq['token_ids'][-1]
+
+        # 1. Embed and project Q, K, V for the sequence's last input token
+        x = embed_tokens([last_token], W_embed)
+        q = linear_projection(x, W_q)
+        k_new = linear_projection(x, W_k)
+        v_new = linear_projection(x, W_v)
+
+        # 2. Write new K/V into the paged cache and gather full KV history
+        append_to_paged_cache(allocator, seq_id, k_new, v_new)
+        k_all, v_all = gather_kv_from_blocks(allocator, seq_id)
+        attn_out = causal_attention(q, k_all, v_all, is_causal=True)
+
+        # 3. Project attention output to vocabulary logits (take the last position)
+        hidden = linear_projection(attn_out, W_o)
+        logits = linear_projection(hidden, W_out)[-1]
+
+        # 4. Sample or select the next token
+        if greedy or temperature == 0.0:
+            next_token = greedy_select(logits)
+        else:
+            scaled = apply_temperature(logits, temperature)
+            if top_k is not None:
+                scaled = top_k_filter(scaled, top_k)
+            if top_p is not None:
+                scaled = top_p_filter(scaled, top_p)
+            probs = stable_softmax(scaled)
+            next_token = sample_from_probs(probs, rng)
+
+        token_id = int(next_token)
+
+        # 5. Update sequence state in place
+        seq['token_ids'].append(token_id)
+        seq.setdefault('generated', []).append(token_id)
+        if 'length' in seq:
+            seq['length'] += 1
+
+        if is_sequence_done(seq, eos_token_id):
+            seq['done'] = True
+
+    return running
+
