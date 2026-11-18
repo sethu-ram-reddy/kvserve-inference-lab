@@ -1080,3 +1080,25 @@ def aggregate_throughput(events, total_time):
         'total_requests': total_requests,
     }
 
+# Step 50 - latency_percentiles
+def latency_percentiles(latencies, percentiles):
+    vals = sorted(latencies)
+    if not vals:
+        return {float(p): 0.0 for p in percentiles}
+
+    n = len(vals)
+    result = {}
+    for p in percentiles:
+        key = float(p)
+        if n == 1:
+            result[key] = float(vals[0])
+            continue
+
+        pos = (p / 100.0) * (n - 1)
+        lo = int(pos)
+        hi = min(lo + 1, n - 1)
+        frac = pos - lo
+        result[key] = float(vals[lo] + frac * (vals[hi] - vals[lo]))
+
+    return result
+
