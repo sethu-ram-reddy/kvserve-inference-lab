@@ -136,3 +136,10 @@ def decode_tokens(token_ids, vocab, skip_special=True):
         
     return ''.join(tokens)
 
+# Step 10 - embed_tokens
+import numpy as np
+
+def embed_tokens(token_ids, embedding_matrix):
+    # Index into the (V, D) embedding matrix using the 1D sequence of token_ids
+    return embedding_matrix[np.asarray(token_ids, dtype=int)]
+
