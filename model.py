@@ -826,3 +826,25 @@ def select_admissions(waiting_heap, allocator, block_size, max_admit):
             
     return admitted
 
+# Step 40 - preempt_sequence
+def preempt_sequence(sequence, allocator, waiting_heap):
+    seq_id = sequence['request_id']
+    priority = sequence['priority']
+    
+    # 1. Release every paged block held by the sequence back to the allocator
+    free_sequence_blocks(allocator, seq_id)
+    
+    # 2. Rebuild the request record from the sequence's fields
+    prompt_key = 'prompt_token_ids' if 'prompt_token_ids' in sequence else 'prompt_ids'
+    request = {
+        'request_id': seq_id,
+        prompt_key: list(sequence[prompt_key]),
+        'max_new_tokens': sequence['max_new_tokens'],
+        'priority': priority,
+    }
+    
+    # 3. Re-enqueue onto the waiting priority queue at its original priority
+    priority_queue_push(waiting_heap, priority, request)
+    
+    return request
+
