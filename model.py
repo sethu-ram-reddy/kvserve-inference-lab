@@ -542,3 +542,90 @@ def batched_decode_step(params, sequences, sampling_config, rng=None):
         
     return sequences
 
+# Step 33 - static_batch_generate
+import numpy as np
+
+def static_batch_generate(params, requests, sampling_config, max_new_tokens):
+    """Run prefill for all requests, then iterate batched decode steps until each
+    sequence hits its per-request budget or the global max_new_tokens cap."""
+    
+    # 1. Initialize sequences using init_sequence_state
+    sequences = []
+    for req in requests:
+        seq = init_sequence_state(req, params)
+        # Ensure standard keys for tracking tokens and completion
+        if 'token_ids' not in seq and 'generated' in seq:
+            seq['token_ids'] = list(req['prompt_token_ids']) + seq['generated']
+        elif 'token_ids' not in seq:
+            seq['token_ids'] = list(req['prompt_token_ids'])
+            seq['generated'] = []
+        sequences.append(seq)
+        
+    # Get global or per-request max tokens caps
+    global_max = max_new_tokens
+    
+    # Extract rng if present in sampling_config
+    rng = sampling_config.get('rng', np.random.default_rng())
+    
+    # 2. Iteratively decode until all sequences are done
+    while True:
+        active_sequences = [s for s in sequences if not s.get('done', False)]
+        if not active_sequences:
+            break
+            
+        # Check budgets
+        for seq in active_sequences:
+            req_budget = seq.get('max_new_tokens', global_max)
+            generated_count = len(seq['generated'])
+            if generated_count >= global_max or generated_count >= req_budget:
+                seq['done'] = True
+                
+        active_sequences = [s for s in sequences if not s.get('done', False)]
+        if not active_sequences:
+            break
+            
+        # Run a batched decode step on active sequences
+        for seq in active_sequences:
+            prev_token = seq['token_ids'][-1]
+            logits, cache = model_decode_step(prev_token, seq['cache'], params)
+            seq['cache'] = cache
+            seq['last_logits'] = logits
+            
+            # Sampling parameters
+            sp = seq.get('sampling_params', sampling_config)
+            temperature = sp.get('temperature', 1.0)
+            top_k = sp.get('top_k', None)
+            top_p = sp.get('top_p', None)
+            greedy = sp.get('greedy', sampling_config.get('greedy', False))
+            active_rng = sp.get('rng', rng)
+            
+            if greedy or temperature == 0.0:
+                next_token = greedy_select(logits)
+            else:
+                scaled = apply_temperature(logits, temperature)
+                if top_k is not None:
+                    scaled = top_k_filter(scaled, top_k)
+                if top_p is not None:
+                    scaled = top_p_filter(scaled, top_p)
+                probs = stable_softmax(scaled)
+                next_token = sample_from_probs(probs, active_rng)
+                
+            token_id = int(next_token)
+            seq['generated'].append(token_id)
+            seq['token_ids'].append(token_id)
+            
+            # Check if this hit the limit
+            req_budget = seq.get('max_new_tokens', global_max)
+            if len(seq['generated']) >= global_max or len(seq['generated']) >= req_budget:
+                seq['done'] = True
+
+    # 3. Format output records: request_id and output_ids (or generated)
+    results = []
+    for seq in sequences:
+        results.append({
+            'request_id': seq['request_id'],
+            'output_ids': seq['generated']
+        })
+        
+    return results
+
