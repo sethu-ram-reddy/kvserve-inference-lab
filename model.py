@@ -198,3 +198,29 @@ def causal_attention(q, k, v, is_causal=True):
     # Weighted sum of values: (Tq, D)
     return weights @ v
 
+# Step 15 - model_prefill
+import numpy as np
+
+def model_prefill(token_ids, params):
+    # 1. Embed input tokens -> (T, D)
+    x = embed_tokens(token_ids, params['embedding'])
+    d_model = x.shape[-1]
+    
+    # 2. Project to Q, K, V -> each (T, D)
+    q = linear_projection(x, params['Wq'])
+    k = linear_projection(x, params['Wk'])
+    v = linear_projection(x, params['Wv'])
+    
+    # 3. Initialize KV cache and populate with K and V
+    cache = init_kv_cache(params['max_seq_len'], d_model)
+    cache = append_kv(cache, k, v)
+    
+    # 4. Run causal self-attention and output projection -> (T, D)
+    attn_out = causal_attention(q, k, v, is_causal=True)
+    hidden = linear_projection(attn_out, params['Wo'])
+    
+    # 5. Project last token's hidden state to vocabulary logits -> (V,)
+    logits = linear_projection(hidden[-1], params['W_out'])
+    
+    return logits, cache
+
