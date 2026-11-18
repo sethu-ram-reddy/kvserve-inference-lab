@@ -1001,3 +1001,21 @@ def collect_request_output(server_state, request_id):
         'chunks': list(record.get('chunks', [])),
     }
 
+# Step 46 - build_completion_response
+def build_completion_response(server_state, request_id, vocab):
+    collected = collect_request_output(server_state, request_id)
+    if collected is None:
+        return None
+
+    output_ids = collected['output_ids']
+    text = decode_tokens(output_ids, vocab, skip_special=True)
+    record = server_state.get('completed', {}).get(request_id, {})
+    finish_reason = record.get('finish_reason', 'stop')
+
+    return {
+        'request_id': request_id,
+        'text': text,
+        'output_ids': output_ids,
+        'finish_reason': finish_reason,
+    }
+
