@@ -224,3 +224,32 @@ def model_prefill(token_ids, params):
     
     return logits, cache
 
+# Step 16 - model_decode_step
+import numpy as np
+
+def model_decode_step(token_id, cache, params):
+    """Advance generation by one token using the existing KV cache."""
+    # 1. Embed the single incoming token -> (1, D)
+    emb_matrix = params.get('embedding', params.get('E'))
+    x = embed_tokens([token_id], emb_matrix)
+    
+    # 2. Project to Q, K, V -> each (1, D)
+    q = linear_projection(x, params['Wq'])
+    k_new = linear_projection(x, params['Wk'])
+    v_new = linear_projection(x, params['Wv'])
+    
+    # 3. Update the KV cache in place with the new K/V row
+    cache = append_kv(cache, k_new, v_new)
+    
+    # 4. Attend over every stored entry in the cache -> (1, D)
+    L = cache['length']
+    k_all = cache['K'][:L]
+    v_all = cache['V'][:L]
+    attn_out = causal_attention(q, k_all, v_all, is_causal=True)
+    
+    # 5. Output projection and vocabulary logits -> (V,)
+    hidden = linear_projection(attn_out, params['Wo'])
+    logits = linear_projection(hidden[0], params['W_out'])
+    
+    return logits, cache
+
