@@ -143,3 +143,12 @@ def embed_tokens(token_ids, embedding_matrix):
     # Index into the (V, D) embedding matrix using the 1D sequence of token_ids
     return embedding_matrix[np.asarray(token_ids, dtype=int)]
 
+# Step 11 - linear_projection
+import numpy as np
+
+def linear_projection(x, weight, bias=None):
+    y = x @ weight
+    if bias is not None:
+        y = y + bias
+    return y
+
