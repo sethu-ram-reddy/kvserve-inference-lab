@@ -331,3 +331,34 @@ def append_to_paged_cache(allocator, seq_id, k_new, v_new):
     # Update running length
     allocator['seq_lengths'][seq_id] = new_len
 
+# Step 22 - gather_kv_from_blocks
+import numpy as np
+
+def gather_kv_from_blocks(allocator, seq_id):
+    # Retrieve length and block table (supporting both dict format from example and list format)
+    if 'seq_lengths' in allocator and seq_id in allocator['seq_lengths']:
+        length = allocator['seq_lengths'][seq_id]
+    else:
+        # Fallback if stored as dict with 'length'
+        entry = allocator['seq_tables'][seq_id]
+        length = entry['length'] if isinstance(entry, dict) else len(entry) * allocator['block_size']
+        
+    table_entry = allocator['seq_tables'][seq_id]
+    block_ids = table_entry['block_ids'] if isinstance(table_entry, dict) else table_entry
+    
+    d_model = allocator['d_model']
+    block_size = allocator['block_size']
+    
+    K = np.zeros((length, d_model), dtype=np.float32)
+    V = np.zeros((length, d_model), dtype=np.float32)
+    
+    for i in range(length):
+        block_idx = i // block_size
+        offset = i % block_size
+        b_id = block_ids[block_idx]
+        
+        K[i] = allocator['K_blocks'][b_id, offset]
+        V[i] = allocator['V_blocks'][b_id, offset]
+        
+    return K, V
+
