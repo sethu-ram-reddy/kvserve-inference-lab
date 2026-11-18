@@ -287,3 +287,8 @@ def allocate_block(allocator, seq_id):
     
     return block_id
 
+# Step 20 - free_block
+def free_block(allocator, block_id):
+    # Append the block_id back to the free list
+    allocator['free_list'].append(block_id)
+
