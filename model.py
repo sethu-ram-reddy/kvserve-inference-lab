@@ -383,3 +383,14 @@ def free_sequence_blocks(allocator, seq_id):
     if 'seq_lengths' in allocator and seq_id in allocator['seq_lengths']:
         del allocator['seq_lengths'][seq_id]
 
+# Step 25 - kv_blocks_in_use
+def kv_blocks_in_use(allocator):
+    total = allocator['num_blocks']
+    free = len(allocator['free_list'])
+    used = total - free
+    return {
+        'used': used,
+        'free': free,
+        'total': total
+    }
+
