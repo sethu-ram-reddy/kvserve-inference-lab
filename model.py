@@ -372,3 +372,14 @@ def paged_attention_step(q, allocator, seq_id):
     # 2. Run causal scaled-dot-product attention over the gathered KV
     return causal_attention(q, k, v, is_causal=True)
 
+# Step 24 - free_sequence_blocks
+def free_sequence_blocks(allocator, seq_id):
+    if seq_id in allocator['seq_tables']:
+        block_ids = allocator['seq_tables'][seq_id]
+        for b_id in block_ids:
+            free_block(allocator, b_id)
+        del allocator['seq_tables'][seq_id]
+        
+    if 'seq_lengths' in allocator and seq_id in allocator['seq_lengths']:
+        del allocator['seq_lengths'][seq_id]
+
