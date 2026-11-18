@@ -78,3 +78,28 @@ def greedy_select(logits):
     # np.argmax automatically returns the first (lowest) index in case of ties
     return int(np.argmax(logits))
 
+# Step 7 - build_vocab
+def build_vocab(corpus, special_tokens):
+    # Initialize id_to_token with special tokens in order
+    id_to_token = list(special_tokens)
+    
+    # Collect all unique characters from the corpus
+    corpus_chars = set()
+    for text in corpus:
+        for char in text:
+            corpus_chars.add(char)
+            
+    # Sort remaining unique characters and append them
+    sorted_chars = sorted(list(corpus_chars))
+    for char in sorted_chars:
+        if char not in id_to_token:
+            id_to_token.append(char)
+            
+    # Build token_to_id mapping
+    token_to_id = {token: idx for idx, token in enumerate(id_to_token)}
+    
+    return {
+        'token_to_id': token_to_id,
+        'id_to_token': id_to_token
+    }
+
