@@ -875,3 +875,22 @@ def format_stream_chunk(request_id, token_id, token_text, finished):
         'finished': finished,
     }
 
+# Step 43 - submit_request
+def submit_request(server_state, prompt, max_new_tokens, priority, vocab):
+    # 1. Assign fresh string request_id and bump the counter
+    req_num = server_state['next_request_id']
+    request_id = f"req-{req_num}"
+    server_state['next_request_id'] = req_num + 1
+
+    # 2. Encode the prompt (default add_bos=True)
+    prompt_token_ids = encode_prompt(prompt, vocab, add_bos=True)
+
+    # 3. Build request record and attach priority
+    request = make_request(request_id, prompt_token_ids, max_new_tokens, {})
+    request['priority'] = priority
+
+    # 4. Enqueue onto the waiting priority queue
+    priority_queue_push(server_state['waiting_heap'], priority, request)
+
+    return request_id
+
