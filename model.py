@@ -38,3 +38,28 @@ def top_k_filter(logits, k):
     # Keep values >= kth_vals, set the rest to -inf
     return np.where(logits >= kth_vals, logits, -np.inf).astype(logits.dtype)
 
+# Step 4 - top_p_filter
+import numpy as np
+
+def top_p_filter(logits, p):
+    # Compute probabilities using stable_softmax from step 1
+    probs = stable_softmax(logits)
+    
+    # Sort indices descending along the last axis
+    sorted_indices = np.argsort(-probs, axis=-1)
+    sorted_probs = np.take_along_axis(probs, sorted_indices, axis=-1)
+    
+    # Compute cumulative probabilities and build mask in sorted order
+    cum_probs = np.cumsum(sorted_probs, axis=-1)
+    sorted_mask = cum_probs >= p
+    
+    # Shift right by 1 so the token that crosses the threshold p is included
+    sorted_mask[..., 1:] = sorted_mask[..., :-1]
+    sorted_mask[..., 0] = False
+    
+    # Scatter the mask back to the original vocabulary positions
+    remove_mask = np.zeros_like(sorted_mask, dtype=bool)
+    np.put_along_axis(remove_mask, sorted_indices, sorted_mask, axis=-1)
+    
+    return np.where(remove_mask, -np.inf, logits).astype(logits.dtype)
+
