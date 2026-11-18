@@ -989,3 +989,15 @@ def drive_until_complete(server_state, params, allocator, sampling_config, vocab
 
     return emitted_chunks
 
+# Step 45 - collect_request_output
+def collect_request_output(server_state, request_id):
+    completed = server_state.get('completed', {})
+    if request_id not in completed:
+        return None
+    record = completed[request_id]
+    return {
+        'request_id': request_id,
+        'output_ids': list(record.get('output_ids', [])),
+        'chunks': list(record.get('chunks', [])),
+    }
+
