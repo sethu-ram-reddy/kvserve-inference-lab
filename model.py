@@ -499,3 +499,46 @@ def build_batch_step_input(sequences):
         'input_ids': np.array(input_ids, dtype=np.int64)
     }
 
+# Step 32 - batched_decode_step
+import numpy as np
+
+def batched_decode_step(params, sequences, sampling_config, rng=None):
+    """Run one synchronized decode step across active sequences."""
+    for seq in sequences:
+        if seq.get('done', False):
+            continue
+            
+        # Get the last token
+        token_ids = seq['token_ids']
+        prev_token = token_ids[-1]
+        
+        # Run decode step forward pass
+        logits, cache = model_decode_step(prev_token, seq['kv_cache'], params)
+        seq['kv_cache'] = cache
+        
+        # Determine sampling parameters
+        sp = seq.get('sampling_params', sampling_config)
+        temperature = sp.get('temperature', 1.0)
+        top_k = sp.get('top_k', None)
+        top_p = sp.get('top_p', None)
+        greedy = sp.get('greedy', False)
+        active_rng = sp.get('rng', rng)
+        if active_rng is None:
+            active_rng = np.random.default_rng()
+        
+        # Sample or select next token
+        if greedy or temperature == 0.0:
+            next_token = greedy_select(logits)
+        else:
+            scaled = apply_temperature(logits, temperature)
+            if top_k is not None:
+                scaled = top_k_filter(scaled, top_k)
+            if top_p is not None:
+                scaled = top_p_filter(scaled, top_p)
+            probs = stable_softmax(scaled)
+            next_token = sample_from_probs(probs, active_rng)
+            
+        seq['token_ids'].append(int(next_token))
+        
+    return sequences
+
