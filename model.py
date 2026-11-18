@@ -798,3 +798,12 @@ def priority_queue_push(heap, priority, request):
     heapq.heappush(heap, (priority, counter, request))
     return heap
 
+# Step 38 - priority_queue_pop
+import heapq
+
+def priority_queue_pop(heap):
+    if not heap:
+        return None
+    _, _, request = heapq.heappop(heap)
+    return request
+
