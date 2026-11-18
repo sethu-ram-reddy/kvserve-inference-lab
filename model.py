@@ -453,3 +453,18 @@ def sequence_decode_step(state, params, rng):
     
     return next_token_id, state
 
+# Step 29 - is_sequence_done
+def is_sequence_done(state, eos_token_id):
+    generated = state.get('generated', [])
+    max_new_tokens = state.get('max_new_tokens', 0)
+    
+    # Check if we've reached the maximum token budget
+    if len(generated) >= max_new_tokens:
+        return True
+        
+    # Check if the most recently generated token is the EOS token
+    if len(generated) > 0 and generated[-1] == eos_token_id:
+        return True
+        
+    return False
+
