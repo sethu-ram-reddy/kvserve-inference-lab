@@ -1,287 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Build a Mini LLM Inference Server — Built on Deep-ML</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #09090b;
-      --surface: #18181b;
-      --surface-alt: #27272a;
-      --border: #27272a;
-      --text: #fafafa;
-      --text-muted: #a1a1a6;
-      --accent: #fafafa;
-    }
-  }
-  :root {
-    --bg: #ffffff;
-    --surface: #fafafa;
-    --surface-alt: #f4f4f5;
-    --border: #e4e4e7;
-    --text: #18181b;
-    --text-muted: #71717a;
-    --accent: #18181b;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    --sans: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    scroll-behavior: smooth;
-  }
-
-  .theme-toggle {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 100;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-  }
-  .theme-toggle:hover {
-    border-color: var(--text);
-  }
-  .theme-toggle svg {
-    width: 20px;
-    height: 20px;
-    stroke: var(--text);
-    fill: none;
-    stroke-width: 2;
-  }
-
-  .hero {
-    position: relative;
-    min-height: 600px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-alt) 100%);
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" /></filter><rect width="100" height="100" filter="url(%23noise)" opacity="0.05"/></svg>');
-    opacity: 0.3;
-    animation: drift 20s ease-in-out infinite;
-  }
-  @keyframes drift {
-    0%, 100% { transform: translate(0, 0); }
-    50% { transform: translate(10px, -10px); }
-  }
-  .hero-content {
-    position: relative;
-    z-index: 2;
-    text-align: center;
-    animation: fadeInUp 0.8s ease-out;
-  }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .hero h1 {
-    font-family: var(--mono);
-    font-size: 48px;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-  }
-
-  .wrap { max-width: 900px; margin: 0 auto; padding: 96px 24px; }
-
-  .section {
-    scroll-margin-top: 100px;
-    animation: fadeIn 0.6s ease-out;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  .section-title {
-    font-family: var(--mono);
-    font-size: 14px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 0 0 32px;
-    font-weight: 600;
-  }
-  .input-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px;
-    margin-bottom: 64px;
-  }
-  .output-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px;
-    margin-bottom: 96px;
-    min-height: 100px;
-  }
-
-  .how-section { margin-bottom: 96px; }
-  .part-reveal {
-    margin-bottom: 48px;
-    animation: slideInLeft 0.6s ease-out;
-  }
-  @keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-  .part-title {
-    font-family: var(--mono);
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0 0 16px;
-    color: var(--text);
-  }
-  .part-description {
-    color: var(--text-muted);
-    margin-bottom: 24px;
-    line-height: 1.7;
-  }
-  .diagram-container {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 250px;
-  }
-  .diagram-container svg {
-    max-width: 100%;
-    height: auto;
-    color: var(--text);
-  }
-
-  .footer {
-    text-align: center;
-    padding-top: 48px;
-    border-top: 1px solid var(--border);
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-  .footer a {
-    color: var(--text);
-    text-decoration: none;
-  }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="KVServe: an inspectable CPU inference engine and a controlled study of KV caching, paged allocation and continuous request scheduling.">
+<title>KVServe · Memory-Aware Inference Systems Lab</title>
+<style>
+:root{color-scheme:light;--ink:#181818;--muted:#555;--line:#d8d8d8;--paper:#fff;--wash:#f5f5f3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 system-ui,-apple-system,sans-serif}a{color:inherit;text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible{outline:2px solid #222;outline-offset:4px}.container{max-width:1100px;margin:auto;padding:0 28px}nav{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px 0;border-bottom:1px solid var(--line)}nav span{font:600 14px ui-monospace,monospace}nav a{font-size:14px}header{max-width:850px;padding:64px 0 34px}.eyebrow{font:12px ui-monospace,monospace;letter-spacing:.05em;color:var(--muted)}h1{font:600 clamp(36px,6vw,60px)/1.12 Georgia,serif;letter-spacing:-.025em;margin:16px 0 20px}header p{font-size:19px;line-height:1.6;color:#383838}.byline{font-size:14px;color:var(--muted)}.contents{display:flex;flex-wrap:wrap;gap:12px 24px;border-block:1px solid var(--line);padding:16px 0;font-size:14px}main{padding-bottom:60px}section{margin-top:52px;scroll-margin-top:24px}h2{font:500 27px/1.25 Georgia,serif;margin:0 0 18px}h3{font-size:17px;margin-top:28px}p{max-width:80ch}.abstract{border-left:2px solid #333;padding-left:22px}.abstract p{margin:8px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.question{border-top:1px solid #777;padding-top:14px}.question h3{margin:0 0 8px}.question p{font-size:15px;color:#444;margin:0}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:13px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{border-top:1px solid #222;background:var(--wash);font-weight:600}td:nth-child(2){font-variant-numeric:tabular-nums;white-space:nowrap}figure{margin:26px 0}figure img{display:block;width:100%;height:auto}figcaption{font-size:13px;color:var(--muted);margin-top:12px;max-width:100ch}.note{background:var(--wash);padding:18px 22px;border:1px solid var(--line);font-size:15px}pre{overflow:auto;padding:22px;background:var(--wash);border:1px solid var(--line);font:13px/1.8 ui-monospace,monospace}code{font-family:ui-monospace,monospace;font-size:.9em}.reading{padding:0;list-style:none}.reading li{padding:12px 0;border-bottom:1px solid var(--line)}.reading span{display:block;font-size:14px;color:var(--muted)}footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);font-size:13px}@media(max-width:650px){.container{padding-inline:18px}header{padding-top:40px}.grid{grid-template-columns:1fr}th,td{padding:10px 8px}nav{align-items:flex-start}header p{font-size:17px}section{margin-top:38px}}
 </style>
 </head>
 <body>
-  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
-    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-  </button>
+<div class="container">
+<nav aria-label="Project navigation"><span>KVServe / Inference systems</span><a href="https://github.com/sethu-ram-reddy/kvserve-inference-lab">Source &amp; reproduction</a></nav>
+<header>
+<div class="eyebrow">CHIEAC · APPLIED AI ENGINEERING</div>
+<h1>Memory-aware inference,<br>measured one decision at a time.</h1>
+<p>A small, inspectable inference engine for studying how KV caching, block allocation and request scheduling interact under a fixed capacity budget.</p>
+<div class="byline">Sethu Ram Reddy · NumPy / Python / FastAPI · CPU reference implementation</div>
+</header>
+<div class="contents" aria-label="On this page"><a href="#abstract">Abstract</a><a href="#questions">Questions</a><a href="#results">Results</a><a href="#schedule">Execution trace</a><a href="#design">Design</a><a href="#reproduce">Reproduce</a><a href="#read">Read the implementation</a></div>
+<main>
+<section id="abstract" class="abstract"><h2>Abstract</h2><p>Efficient serving requires more than generating tokens. Requests have unequal lifetimes, KV state grows during decoding, and optimizations can move a bottleneck rather than remove it. KVServe makes those interactions explicit with separate model, cache, scheduler and delivery layers.</p><p>A controlled 2 × 2 experiment compares static and continuous scheduling with fixed and paged cache layouts. The reference uses an untrained, 49,408-parameter attention decoder so its mechanics remain auditable without model downloads. It measures serving behavior, not language quality.</p></section>
+<section id="questions"><h2>Three questions behind the implementation</h2><div class="grid"><article class="question"><h3>When should a free slot be reused?</h3><p>Continuous scheduling admits a new request when an earlier one finishes, while static waves wait for their longest member. Equal-length and long-tail workloads make the difference visible.</p></article><article class="question"><h3>How much KV capacity is actually needed?</h3><p>Fixed context slabs waste assigned capacity on short requests. Page tables allow incremental ownership, with block size determining the unused tail.</p></article><article class="question"><h3>Does the memory improvement make execution faster?</h3><p>Not necessarily. Direct blockwise attention avoids a full-history gather, but Python traversal can cost more than the concurrency it enables. The evaluation retains that negative result.</p></article><article class="question"><h3>How do we know the comparison is valid?</h3><p>Policies use the same model, workloads and output budgets. Every measured run checks output equivalence and cache release; real events supply the latency measurements.</p></article></div></section>
+<section id="results"><h2>Measured reference results</h2><div class="table-wrap"><table><thead><tr><th>Experiment</th><th>Result</th><th>What the result means</th></tr></thead><tbody>
+<tr><td>Cached vs full-prefix execution</td><td><strong>8.39× faster</strong></td><td>11.98 → 1.43 ms median; a separate 96-input / 32-output CPU compute experiment.</td></tr>
+<tr><td>Continuous vs static scheduling</td><td><strong>18.1% higher throughput</strong></td><td>22,883 → 27,022 output tokens/s on the mixed-length workload with fixed caches.</td></tr>
+<tr><td>First-token latency</td><td><strong>29.3% lower p95 TTFT</strong></td><td>Same fixed-cache comparison; median of per-run p95s at in-process emission.</td></tr>
+<tr><td>Paging vs fixed slabs</td><td><strong>69.5% less assigned capacity</strong></td><td>2,048 → 624 KV slots for eight matched lengths. Not a process-RAM reduction.</td></tr>
+<tr><td>Evaluation</td><td><strong>180 runs / 5,760 completions</strong></td><td>Three workload families, three workload seeds, four configurations and five repeats.</td></tr>
+</tbody></table></div><figure><img src="assets/benchmark.svg" alt="Four experimental panels showing CPU throughput, first-token latency, assigned KV capacity at different block sizes, and cached versus full-prefix recomputation time."><figcaption>Real CPU measurements. Panels (a–b): median across 15 runs, with 10th–90th percentile whiskers. Panel (c): same request lengths under different block sizes. Panel (d): a separate cache compute ablation. See the protocol for timing scope, controls and limitations.</figcaption></figure><p class="note">Paging improves assigned capacity but lowers throughput in this Python reference. These numbers are not a comparison against vLLM, a trained LLM, or a GPU kernel. The full result matrix and all raw runs are available in the repository.</p></section>
+<section id="schedule"><h2>Look at the schedule, not only the aggregate</h2><figure><img src="assets/schedule.svg" alt="Observed active request lifetimes under static and continuous scheduling for the same mixed workload."><figcaption>Mixed workload, seed 7, repeat 0. Each segment is a request's observed active lifetime. Logical decode rounds show the static-wave gaps and continuous replacement; they are not wall-clock time.</figcaption></figure></section>
+<section id="design"><h2>Decisions that make the engine inspectable</h2><div class="grid"><article class="question"><h3>One authoritative request lifecycle</h3><p>Prefill predicts the first output. Only emitted tokens needed for another prediction are fed back. Completion, cancellation and failure release both physical ownership and promised capacity.</p></article><article class="question"><h3>Conservative admission</h3><p>Before admission, reserve enough KV capacity for the declared output budget. Allocate pages as history grows. Requests that cannot fit an empty pool fail validation.</p></article><article class="question"><h3>Direct reads across physical pages</h3><p>Online softmax combines each block's logits into one stable attention result. No complete KV-history gather is required. Equivalence tests compare it against contiguous attention.</p></article><article class="question"><h3>Shared worker and observed events</h3><p>Concurrent HTTP clients share one scheduler. Bounded channels carry token events; disconnects cancel work. The benchmark stamps events at their origin rather than reconstructing timestamps.</p></article></div></section>
+<section id="reproduce"><h2>Reproduce the experiment</h2><pre><code>python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[server,dev]'
 
-  <section class="hero" id="hero">
-    <div class="hero-content">
-      <h1>Build a Mini LLM Inference Server</h1>
-    </div>
-  </section>
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python -m benchmarks.run --output .runs/reproduced
 
-  <div class="wrap">
-    
-
-    <section class="section how-section" id="how-section">
-      <h2 class="section-title">How it was built</h2>
-      
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 1: Sampling Primitives</h3>
-              <p class="part-description">Implement the decoding-time math: stable softmax, temperature scaling, top-k/top-p filters, and stochastic vs greedy token selection.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 2: Tokenization</h3>
-              <p class="part-description">Build a tiny vocabulary plus encode/decode utilities to move between strings and token id sequences.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 3: Tiny Transformer with KV Cache</h3>
-              <p class="part-description">Implement embeddings, linear projections, a basic KV cache, causal attention, and the prefill/decode forward passes.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 4: Paged KV Cache</h3>
-              <p class="part-description">Design a block-based KV allocator with allocation/free, paged appends, gather, paged attention, and usage accounting.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 5: Sequences and Static Batching</h3>
-              <p class="part-description">Model per-request sequence state, drive single-sequence generation, then batch multiple sequences through synchronized decode steps.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 6: Continuous Batching and Scheduling</h3>
-              <p class="part-description">Add capacity checks, priority queues, admission, preemption, and a scheduler that mixes prefill and decode across in-flight requests.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 7: Serving API</h3>
-              <p class="part-description">Expose a request/response interface with streaming chunks, submission, a driver loop, output collection, and completion responses.</p>
-              
-            </div>
-          
-            <div class="part-reveal" style="opacity: 1">
-              <h3 class="part-title">Part 8: Benchmarking</h3>
-              <p class="part-description">Measure TTFT, inter-token latency, throughput, and latency percentiles with an end-to-end benchmark runner.</p>
-              
-            </div>
-          
-    </section>
-
-    <footer class="footer">
-      <p>Built by <strong>@sethu-ram-reddy</strong> on <a href="https://deep-ml.com" target="_blank">Deep-ML</a></p>
-    </footer>
-  </div>
-
-  <script>
-    function toggleTheme() {
-      const html = document.documentElement;
-      const isDark = html.style.colorScheme === 'dark';
-      html.style.colorScheme = isDark ? 'light' : 'dark';
-      localStorage.setItem('theme', isDark ? 'light' : 'dark');
-    }
-    function initTheme() {
-      const saved = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const isDark = saved === 'dark' || (saved === null && prefersDark);
-      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-    }
-    initTheme();
-    window.scrollToOutput = function() {
-      const output = document.getElementById('output-section');
-      output?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-  </script>
+python scripts/report.py --results .runs/reproduced --assets .runs/figures
+python -m unittest discover -s tests -v</code></pre><p>Run commands from a checkout of the repository. The recorded manifest identifies the CPU, runtime versions, thread settings and source hashes. Timings vary across machines; output IDs, ownership checks and capacity accounting provide portable correctness targets.</p></section>
+<section id="read"><h2>Technical documentation</h2><ul class="reading">
+<li><a href="https://github.com/sethu-ram-reddy/kvserve-inference-lab/blob/main/docs/theory.md">Theory: from autoregression to online softmax</a><span>Equations, byte tokenization, prefill/decode, memory accounting and sampling semantics.</span></li>
+<li><a href="https://github.com/sethu-ram-reddy/kvserve-inference-lab/blob/main/docs/architecture.md">Architecture and execution contracts</a><span>Component diagrams, request lifecycle, cache ownership and HTTP/SSE delivery.</span></li>
+<li><a href="https://github.com/sethu-ram-reddy/kvserve-inference-lab/blob/main/docs/benchmark.md">Protocol, full matrix and raw evidence</a><span>All four configurations, workload controls, counterexamples and claim definitions.</span></li>
+<li><a href="https://github.com/sethu-ram-reddy/kvserve-inference-lab/blob/main/docs/decisions.md">Design decisions and alternatives</a><span>Why these mechanisms were chosen and which costs follow from each decision.</span></li>
+</ul></section>
+</main>
+<footer>Developed for ChIEAC applied AI engineering. Began with the Deep-ML inference-server exercise; original solutions are preserved in the repository. Continuous scheduling and paging follow established Orca and PagedAttention research. This project contributes a small, auditable implementation and controlled evaluation.</footer>
+</div>
 </body>
 </html>

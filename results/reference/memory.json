@@ -1,0 +1,57 @@
+[
+  {
+    "block_size": 4,
+    "requests": 8,
+    "useful_kv_slots": 584,
+    "fixed_assigned_slots": 2048,
+    "paged_assigned_slots": 592,
+    "paged_tail_slots": 8,
+    "assigned_capacity_reduction_pct": 71.09375,
+    "bytes_per_slot": 512,
+    "paged_preallocated_pool_bytes": 1048576
+  },
+  {
+    "block_size": 8,
+    "requests": 8,
+    "useful_kv_slots": 584,
+    "fixed_assigned_slots": 2048,
+    "paged_assigned_slots": 592,
+    "paged_tail_slots": 8,
+    "assigned_capacity_reduction_pct": 71.09375,
+    "bytes_per_slot": 512,
+    "paged_preallocated_pool_bytes": 1048576
+  },
+  {
+    "block_size": 16,
+    "requests": 8,
+    "useful_kv_slots": 584,
+    "fixed_assigned_slots": 2048,
+    "paged_assigned_slots": 624,
+    "paged_tail_slots": 40,
+    "assigned_capacity_reduction_pct": 69.53125,
+    "bytes_per_slot": 512,
+    "paged_preallocated_pool_bytes": 1048576
+  },
+  {
+    "block_size": 32,
+    "requests": 8,
+    "useful_kv_slots": 584,
+    "fixed_assigned_slots": 2048,
+    "paged_assigned_slots": 672,
+    "paged_tail_slots": 88,
+    "assigned_capacity_reduction_pct": 67.1875,
+    "bytes_per_slot": 512,
+    "paged_preallocated_pool_bytes": 1048576
+  },
+  {
+    "block_size": 64,
+    "requests": 8,
+    "useful_kv_slots": 584,
+    "fixed_assigned_slots": 2048,
+    "paged_assigned_slots": 896,
+    "paged_tail_slots": 312,
+    "assigned_capacity_reduction_pct": 56.25,
+    "bytes_per_slot": 512,
+    "paged_preallocated_pool_bytes": 1048576
+  }
+]

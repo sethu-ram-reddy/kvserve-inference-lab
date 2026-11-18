@@ -1,0 +1,49 @@
+{
+  "config": {
+    "width": 64,
+    "max_context": 256,
+    "model_seed": 7,
+    "parameters": 49408,
+    "requests_per_workload": 32,
+    "repeats": 5,
+    "workload_seeds": [
+      7,
+      19,
+      42
+    ],
+    "block_size": 16,
+    "total_slots": 1024,
+    "max_running": 16,
+    "sampling": "greedy",
+    "eos": "disabled for fixed output budgets",
+    "arrivals": "all-at-once burst",
+    "timing_scope": "in-process CPU; submit through last completion; excludes model/pool construction"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "packages": {
+      "numpy": "2.3.5",
+      "fastapi": "0.141.1",
+      "uvicorn": "0.52.1",
+      "matplotlib": "3.10.8"
+    },
+    "thread_environment": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  },
+  "source_sha256": {
+    "kvserve/__init__.py": "2178d6377c202b468d83ecd46df71ab4de2ec3cecb2676155327eae65bfb8190",
+    "kvserve/api.py": "64b96e92fcda2bc1ea76d22d29489c005fafd8bd2225ba07e1e1f3554d04615e",
+    "kvserve/cache.py": "323d5ec42f0f2d088fc2deeed198d99541500bd12efa45f9535cbdc8838bd265",
+    "kvserve/cli.py": "3a0aa54cb0dc98c5fbd96c69eeab6f55843d17b0c9198a98dd78e34c3d534218",
+    "kvserve/engine.py": "9d8d39b577f58c9923ca063e35a5abd97fc9bbdeb181b3f0e447fa94743373cb",
+    "kvserve/metrics.py": "5df638f67129cdec157b3a147a1b90b75d33072d45cee53457a77c4268fc94b4",
+    "kvserve/model.py": "67dc9cb7497b555b6ce90236bacb480083665d31faa017c395db3363d7c1c30d",
+    "kvserve/sampling.py": "9470e41bc9ef0c15b182816441166be6580134fd48ee9a6f57dc274c4b7c75a5",
+    "benchmarks/run.py": "dc41448ae80bbff081ce6a217b24ee1bb2cbd35c8d1b945e4099f7c245c92b7c"
+  }
+}

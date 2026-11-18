@@ -1,0 +1,20 @@
+{
+  "experiment_runs": 180,
+  "workloads": 3,
+  "workload_seeds": 3,
+  "repeats_per_seed": 5,
+  "requests_completed_across_runs": 5760,
+  "all_outputs_equivalent": true,
+  "all_kv_released": true,
+  "mixed_fixed_throughput_gain_pct": 18.084628837703033,
+  "mixed_fixed_ttft_p95_reduction_pct": 29.283054837359124,
+  "mixed_fixed_static_tokens_per_s": 22883.344381175284,
+  "mixed_fixed_continuous_tokens_per_s": 27021.712278164207,
+  "assigned_kv_capacity_reduction_pct": 69.53125,
+  "fixed_assigned_slots": 2048,
+  "paged_assigned_slots": 624,
+  "cache_microbenchmark_speedup": 8.38956207989842,
+  "cache_microbenchmark_uncached_ms": 11.978406999787694,
+  "cache_microbenchmark_cached_ms": 1.4277750001383538,
+  "scope": "CPU NumPy untrained attention decoder; in-process timings; assigned capacity is not process RSS"
+}

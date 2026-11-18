@@ -1,0 +1,30 @@
+name: Validate inference mechanics and evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package and HTTP test dependencies
+        run: python -m pip install -e '.[dev,server]'
+      - name: Test numerical behavior, lifecycles, API and published evidence
+        run: python -m unittest discover -s tests -v
+      - name: Verify real HTTP concurrency and stream cancellation
+        run: python scripts/smoke_http.py
+      - name: Run installed demonstration
+        run: kvserve demo
+      - name: Regenerate the reference report without rerunning timings
+        run: python scripts/report.py --assets .runs/figures

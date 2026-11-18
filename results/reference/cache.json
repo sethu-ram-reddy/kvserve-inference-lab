@@ -1,0 +1,47 @@
+{
+  "prompt_tokens": 96,
+  "output_tokens": 32,
+  "output_equivalent": true,
+  "runs": [
+    {
+      "repeat": 0,
+      "uncached_s": 0.011786545000177284,
+      "cached_s": 0.0017822600002546096
+    },
+    {
+      "repeat": 1,
+      "uncached_s": 0.011978406999787694,
+      "cached_s": 0.0014716699997734395
+    },
+    {
+      "repeat": 2,
+      "uncached_s": 0.011505055999805336,
+      "cached_s": 0.0013981709998915903
+    },
+    {
+      "repeat": 3,
+      "uncached_s": 0.01183882099985567,
+      "cached_s": 0.0014140250000309607
+    },
+    {
+      "repeat": 4,
+      "uncached_s": 0.011989084000106232,
+      "cached_s": 0.0014135639999039995
+    },
+    {
+      "repeat": 5,
+      "uncached_s": 0.013167719999728433,
+      "cached_s": 0.00178997300008632
+    },
+    {
+      "repeat": 6,
+      "uncached_s": 0.01252989400018123,
+      "cached_s": 0.0014277750001383538
+    }
+  ],
+  "uncached_median_ms": 11.978406999787694,
+  "cached_median_ms": 1.4277750001383538,
+  "median_speedup": 8.38956207989842,
+  "uncached_projected_token_rows": 3568,
+  "cached_projected_token_rows": 127
+}

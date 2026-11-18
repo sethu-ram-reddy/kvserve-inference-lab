@@ -1,67 +1,113 @@
-# Build a Mini LLM Inference Server
+# KVServe
 
-Construct a complete LLM inference stack from scratch: sampling, tokenization, a tiny transformer with KV caching, a paged attention allocator, continuous batching with scheduling, a streaming serving API, and a throughput/latency benchmark harness. This mirrors the architecture of modern serving systems like vLLM at a digestible scale.
+**Memory-Aware Inference Systems Lab**
 
-## How to run
+A CPU reference implementation that makes LLM serving decisions inspectable: prefill and decode, incremental KV caching, block allocation, iteration scheduling, queue admission, and streamed completion events.
 
-```bash
-python scaffold.py
+**Engineering question:** under a fixed KV budget, which changes improve request latency, which increase available concurrency, and which introduce enough implementation overhead to erase those gains?
+
+This project uses a **49,408-parameter, untrained NumPy attention decoder**, so experiments isolate serving mechanics and can run on a laptop without model downloads. It does not evaluate language quality or claim production GPU performance. The HTTP layer uses FastAPI; the measured benchmark runs inside the process.
+
+[Architecture](docs/architecture.md) · [Theory](docs/theory.md) · [Experiments](docs/benchmark.md) · [Design decisions](docs/decisions.md)
+
+## Evidence at a glance
+
+| Experiment | Verified reference result | Comparison and scope |
+| --- | ---: | --- |
+| KV caching | **8.39× faster** | 11.98 → 1.43 ms median; cached execution vs full-prefix causal recomputation; 96 input + 32 output tokens; seven measured repeats |
+| Continuous scheduling | **18.1% higher throughput** | 22,883 → 27,022 output tokens/s; static vs continuous with the same fixed-cache layout; mixed-length CPU workload |
+| First-token latency | **29.3% lower p95 TTFT** | Median of per-run p95 values; same scheduling comparison |
+| Paged allocation | **69.5% less assigned KV capacity** | 2,048 → 624 token slots for the same eight request lengths; 16-token blocks; not a process-RAM reduction |
+| Experimental coverage | **180 measured runs / 5,760 completions** | Three workload families × three workload seeds × four configurations × five repeats; matching outputs and released KV ownership in every run |
+
+Paging reduced capacity waste but **was slower than contiguous attention in this Python implementation**. The result is useful: a memory-management improvement does not automatically provide a CPU throughput improvement. The [full matrix](docs/benchmark.md#scheduling-and-layout-matrix) reports every configuration.
+
+![Measured inference, scheduling and KV allocation ablations](results/reference/benchmark.png)
+
+Panels (a–b): mixed-length workload, medians across 15 runs; whiskers span the 10th–90th percentiles across runs. Panel (c): matched KV lengths, not an RSS measurement. Panel (d): a separate single-request compute experiment. [Vector figure](docs/assets/benchmark.svg) · [Claim ledger](results/reference/claims.json) · [Raw runs](results/reference/runs.jsonl) · [Environment and source hashes](results/reference/manifest.json)
+
+## What was built
+
+```mermaid
+flowchart TB
+    API["HTTP / SSE adapter"] --> Queue["Bounded priority queue"]
+    Queue --> Scheduler["Iteration scheduler"]
+    Scheduler --> Decoder["Prefill / decode projections"]
+    Decoder --> Cache["Fixed slab or paged KV pool"]
+    Cache --> Decoder
+    Scheduler --> Events["Timestamped token events"]
+    Events --> API
+    Events --> Metrics["TTFT / ITL / throughput"]
 ```
 
-## Steps
+The decoder batches Q/K/V and output projections across active requests. Each request reads its own ragged attention history. The paged path computes online softmax directly over physical blocks; it never gathers an entire sequence into a temporary contiguous KV buffer.
 
-- [x] **1.** stable_softmax
-- [x] **2.** apply_temperature
-- [x] **3.** top_k_filter
-- [x] **4.** top_p_filter
-- [x] **5.** sample_from_probs
-- [x] **6.** greedy_select
-- [x] **7.** build_vocab
-- [x] **8.** encode_prompt
-- [x] **9.** decode_tokens
-- [x] **10.** embed_tokens
-- [x] **11.** linear_projection
-- [x] **12.** init_kv_cache
-- [x] **13.** append_kv
-- [x] **14.** causal_attention
-- [x] **15.** model_prefill
-- [x] **16.** model_decode_step
-- [x] **17.** blocks_needed
-- [x] **18.** init_block_allocator
-- [x] **19.** allocate_block
-- [x] **20.** free_block
-- [x] **21.** append_to_paged_cache
-- [x] **22.** gather_kv_from_blocks
-- [x] **23.** paged_attention_step
-- [x] **24.** free_sequence_blocks
-- [x] **25.** kv_blocks_in_use
-- [x] **26.** make_request
-- [x] **27.** init_sequence_state
-- [x] **28.** sequence_decode_step
-- [x] **29.** is_sequence_done
-- [x] **30.** generate_single_sequence
-- [x] **31.** build_batch_step_input
-- [x] **32.** batched_decode_step
-- [x] **33.** static_batch_generate
-- [x] **34.** has_free_capacity
-- [x] **35.** continuous_batch_step
-- [x] **36.** run_continuous_batching
-- [x] **37.** priority_queue_push
-- [x] **38.** priority_queue_pop
-- [x] **39.** select_admissions
-- [x] **40.** preempt_sequence
-- [x] **41.** schedule_step
-- [x] **42.** format_stream_chunk
-- [x] **43.** submit_request
-- [x] **44.** drive_until_complete
-- [x] **45.** collect_request_output
-- [x] **46.** build_completion_response
-- [x] **47.** time_to_first_token
-- [x] **48.** inter_token_latency
-- [x] **49.** aggregate_throughput
-- [x] **50.** latency_percentiles
-- [x] **51.** run_throughput_latency_benchmark
+The scheduler reserves a request's declared maximum KV requirement before admission, then allocates physical blocks as its sequence grows. This trades some admission flexibility for a clear guarantee: admitted requests can finish without growth-time KV exhaustion. The default FIFO admission order is stable within priority. An optional fit-first policy demonstrates the head-of-line blocking/fairness trade-off.
 
----
+## Run it
 
-Built on Deep-ML.
+Python 3.10+; the reference environment used Python 3.12. The core depends only on NumPy.
+
+```bash
+git clone https://github.com/sethu-ram-reddy/kvserve-inference-lab.git
+cd kvserve-inference-lab
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[server,dev]'
+
+python scaffold.py
+# Equivalent installed command:
+kvserve demo
+```
+
+Generated bytes demonstrate execution of an untrained decoder. Meaningful chat responses require a trained model backend, which is outside this implementation.
+
+## Serve requests
+
+```bash
+kvserve serve --port 8000
+
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/v1/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Explain KV caching","max_tokens":16,"seed":7}'
+
+curl -N http://127.0.0.1:8000/v1/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Explain KV caching","max_tokens":16,"stream":true}'
+```
+
+One shared worker advances all active requests. SSE emits observed token and finish events; a cancelled stream releases its cache. `/metrics` exposes queue, reservation, allocation and completion counters. `/docs` contains the API schema. The local demo binds to `127.0.0.1` and has no authentication layer. The completion endpoint uses a small project-specific schema; it is not a complete OpenAI API implementation. See [HTTP semantics](docs/architecture.md#http-and-streaming).
+
+## Reproduce the results
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python -m benchmarks.run --output .runs/reproduced
+
+python scripts/report.py --results .runs/reproduced --assets .runs/figures
+python -m unittest discover -s tests -v
+python scripts/smoke_http.py
+```
+
+The reference grid takes roughly tens of seconds on this host. CPU timings depend on hardware, NumPy/BLAS, system load and runtime versions. Each mode gets a discarded warm-up; execution order rotates across repeats and workload seeds. Output budgets disable early EOS in benchmarks. HTTP transport and model/pool construction are outside the timing scope. [Protocol and formulas](docs/benchmark.md)
+
+## Where to read the implementation
+
+| File | Read it to understand |
+| --- | --- |
+| [kvserve/model.py](kvserve/model.py) | What prefill computes; how cached decode differs from full-prefix recomputation |
+| [kvserve/cache.py](kvserve/cache.py) | Block tables, atomic allocation, tail waste and online softmax |
+| [kvserve/engine.py](kvserve/engine.py) | Admission reservations, static waves, continuous refill and token lifetimes |
+| [kvserve/api.py](kvserve/api.py) | Shared worker, bounded queues, streaming and cancellation |
+| [kvserve/metrics.py](kvserve/metrics.py) | Metrics derived from observed event timestamps |
+| [benchmarks/run.py](benchmarks/run.py) | Paired workloads, 2×2 ablation, cache and block-size studies |
+| [tests/](tests/) | Numerical equivalence, ownership, failure paths and HTTP behavior |
+
+## Project context and provenance
+
+Developed as an inference-systems project for **ChIEAC — Chicago Education Advocacy Cooperative**. It began with the 51-step Deep-ML *Build a Mini LLM Inference Server* exercise. The original solutions are preserved in [archive/](archive/); the maintained implementation adds a coherent engine, direct blockwise attention, an actual HTTP adapter, correctness checks and reproducible experiments. [What changed and why](docs/provenance.md)
+
+The mechanisms are established systems techniques, inspired by [Orca](https://www.usenix.org/conference/osdi22/presentation/yu) and [PagedAttention](https://arxiv.org/abs/2309.06180). This project's contribution is their inspectable implementation, controlled evaluation and explicit failure handling at a small CPU scale. It makes no claim to invent continuous batching or paging.
+
+[Model and system scope](docs/model-card.md) · [Results and evidence](results/reference/claims.json) · [Contributing](CONTRIBUTING.md)

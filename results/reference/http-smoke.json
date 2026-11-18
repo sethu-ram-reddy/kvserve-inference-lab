@@ -1,0 +1,21 @@
+{
+  "concurrent_completions": 8,
+  "tokens_per_completion": 24,
+  "stream_first_token_observed": true,
+  "early_stream_close": true,
+  "no_pending_work_after_close": true,
+  "kv_released": true,
+  "server_counters": {
+    "accepted": 9,
+    "finished": 8,
+    "cancelled": 1,
+    "failed": 0,
+    "running": 0,
+    "waiting": 0,
+    "assigned_kv_slots": 0,
+    "reserved_kv_slots": 0,
+    "pool_slots": 4096,
+    "scheduler_ticks": 34
+  },
+  "scope": "loopback integration smoke test; no transport performance claim"
+}
