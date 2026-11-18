@@ -292,3 +292,42 @@ def free_block(allocator, block_id):
     # Append the block_id back to the free list
     allocator['free_list'].append(block_id)
 
+# Step 21 - append_to_paged_cache
+import numpy as np
+
+def append_to_paged_cache(allocator, seq_id, k_new, v_new):
+    """Write t new K/V rows into the sequence's paged blocks, allocating as needed."""
+    if 'seq_lengths' not in allocator:
+        allocator['seq_lengths'] = {}
+        
+    current_len = allocator['seq_lengths'].get(seq_id, 0)
+    t = k_new.shape[0]
+    new_len = current_len + t
+    
+    block_size = allocator['block_size']
+    needed_blocks = blocks_needed(new_len, block_size)
+    
+    # Ensure seq_tables has an entry
+    if seq_id not in allocator['seq_tables']:
+        allocator['seq_tables'][seq_id] = []
+        
+    current_blocks = len(allocator['seq_tables'][seq_id])
+    
+    # Allocate new blocks as needed
+    for _ in range(needed_blocks - current_blocks):
+        allocate_block(allocator, seq_id)
+        
+    # Write rows into the physical blocks
+    for i in range(t):
+        logical_pos = current_len + i
+        block_idx_in_table = logical_pos // block_size
+        offset_in_block = logical_pos % block_size
+        
+        block_id = allocator['seq_tables'][seq_id][block_idx_in_table]
+        
+        allocator['K_blocks'][block_id, offset_in_block] = k_new[i]
+        allocator['V_blocks'][block_id, offset_in_block] = v_new[i]
+        
+    # Update running length
+    allocator['seq_lengths'][seq_id] = new_len
+
